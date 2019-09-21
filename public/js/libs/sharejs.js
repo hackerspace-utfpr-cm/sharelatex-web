@@ -26,7 +26,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
  * DS207: Consider shorter variations of null checks
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-define(['ace/ace'], function () {
+define(['ace/ace','libs/sha1'], function () {
   var append = void 0,
       bootstrapTransform = void 0,
       exports = void 0,
@@ -1303,8 +1303,23 @@ define(['ace/ace'], function () {
 
         this.emit('flipped_pending_to_inflight');
 
+        if (window.useShareJsHash || window.sl_debugging) {
+          var now = Date.now()
+          var age = this.__lastSubmitTimestamp && (now - this.__lastSubmitTimestamp)
+          var RECOMPUTE_HASH_INTERVAL = 5000
+          // check the document hash regularly (but not if we have checked in the last 5 seconds)
+          var needToRecomputeHash = !this.__lastSubmitTimestamp || (age > RECOMPUTE_HASH_INTERVAL) || (age < 0) 
+          if (needToRecomputeHash || window.sl_debugging) {
+            // send git hash of current snapshot
+            var sha1 = CryptoJS.SHA1("blob " + this.snapshot.length + "\x00" + this.snapshot).toString()
+            this.__lastSubmitTimestamp = now;
+          }
+        }
+
         // console.log "SENDING OP TO SERVER", @inflightOp, @version
-        return this.connection.send({ doc: this.name, op: this.inflightOp, v: this.version });
+        var lastVersion = this.__lastVersion;
+        this.__lastVersion = this.version;
+        return this.connection.send({ doc: this.name, op: this.inflightOp, v: this.version, lastV: lastVersion, hash: sha1});
       }
 
       // Submit an op to the server. The op maybe held for a little while before being sent, as only one
@@ -1490,6 +1505,7 @@ define(['ace/ace'], function () {
         var otText = doc.getText();
 
         if (editorText !== otText) {
+          doc.emit('error','Text does not match in ace')
           console.error('Text does not match!');
           console.error('editor: ' + editorText);
           return console.error('ot:     ' + otText);
@@ -1618,9 +1634,11 @@ define(['ace/ace'], function () {
     // I tuned this operation a little bit, for speed.
     var startPos = 0; // Get character position from # of chars in each line.
     var i = 0; // i goes through all lines.
-
+    // Compute the position from the shareJS snapshot because we are in the CodeMirror
+    // change event, where the change has already been applied to the editorDoc
+    var docLines = doc.snapshot.split('\n', delta.from.line) // only split the document as far as we need to
     while (i < delta.from.line) {
-      startPos += editorDoc.lineInfo(i).text.length + 1; // Add 1 for '\n'
+      startPos += docLines[i].length + 1; // Add 1 for '\n'
       i++;
     }
     startPos += delta.from.ch;
@@ -1650,6 +1668,7 @@ define(['ace/ace'], function () {
         var otText = sharedoc.getText();
 
         if (editorText !== otText) {
+          sharedoc.emit('error','Text does not match in CodeMirror')
           console.error('Text does not match!');
           console.error('editor: ' + editorText);
           return console.error('ot:     ' + otText);
@@ -1689,6 +1708,9 @@ define(['ace/ace'], function () {
       suppress = true;
       // All the primitives we need are already in CM's API.
       editor.replaceRange(text, editor.posFromIndex(pos));
+      // Clear CM's undo/redo history on remote edit. This prevents issues where
+      // a user can accidentally remove another user's edits
+      editor.clearHistory();
       suppress = false;
       return check();
     };
@@ -1698,6 +1720,9 @@ define(['ace/ace'], function () {
       var from = editor.posFromIndex(pos);
       var to = editor.posFromIndex(pos + text.length);
       editor.replaceRange('', from, to);
+      // Clear CM's undo/redo history on remote edit. This prevents issues where
+      // a user can accidentally remove another user's edits
+      editor.clearHistory()
       suppress = false;
       return check();
     };

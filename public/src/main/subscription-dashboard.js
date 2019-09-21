@@ -19,14 +19,51 @@ define(['base'], function(App) {
   const SUBSCRIPTION_URL = '/user/subscription/update'
 
   const ensureRecurlyIsSetup = _.once(() => {
-    if (!recurly) return
+    if (typeof recurly === 'undefined' || !recurly) {
+      return false
+    }
     recurly.configure(window.recurlyApiKey)
+    return true
+  })
+
+  App.controller('MetricsEmailController', function($scope, $http) {
+    $scope.institutionEmailSubscription = function(institutionId) {
+      var inst = _.find(window.managedInstitutions, function(institution) {
+        return institution.v1Id === parseInt(institutionId)
+      })
+      if (inst.metricsEmail.optedOutUserIds.includes(window.user_id)) {
+        return 'Subscribe'
+      } else {
+        return 'Unsubscribe'
+      }
+    }
+
+    $scope.changeInstitutionalEmailSubscription = function(institutionId) {
+      $scope.subscriptionChanging = true
+      return $http({
+        method: 'POST',
+        url: `/institutions/${institutionId}/emailSubscription`,
+        headers: {
+          'X-CSRF-Token': window.csrfToken
+        }
+      }).then(function successCallback(response) {
+        window.managedInstitutions = _.map(window.managedInstitutions, function(
+          institution
+        ) {
+          if (institution.v1Id === parseInt(institutionId)) {
+            institution.metricsEmail.optedOutUserIds = response.data
+          }
+          return institution
+        })
+        $scope.subscriptionChanging = false
+      })
+    }
   })
 
   App.factory('RecurlyPricing', function($q, MultiCurrencyPricing) {
     return {
       loadDisplayPriceWithTax: function(planCode, currency, taxRate) {
-        ensureRecurlyIsSetup()
+        if (!ensureRecurlyIsSetup()) return
         const currencySymbol = MultiCurrencyPricing.plans[currency].symbol
         const pricing = recurly.Pricing()
         return $q(function(resolve, reject) {
@@ -39,7 +76,11 @@ define(['base'], function(App) {
               if (isNaN(taxAmmount)) {
                 taxAmmount = 0
               }
-              resolve(`${currencySymbol}${totalPriceExTax + taxAmmount}`)
+              let total = totalPriceExTax + taxAmmount
+              if (total % 1 !== 0) {
+                total = total.toFixed(2)
+              }
+              resolve(`${currencySymbol}${total}`)
             })
         })
       }
@@ -51,7 +92,7 @@ define(['base'], function(App) {
     $modal,
     RecurlyPricing
   ) {
-    ensureRecurlyIsSetup()
+    if (!ensureRecurlyIsSetup()) return
 
     $scope.changePlan = () =>
       $modal.open({
@@ -126,7 +167,9 @@ define(['base'], function(App) {
   })
 
   App.controller('RecurlySubscriptionController', function($scope) {
-    $scope.showChangePlanButton = !subscription.groupPlan
+    const recurlyIsSetup = ensureRecurlyIsSetup()
+    $scope.showChangePlanButton = recurlyIsSetup && !subscription.groupPlan
+    $scope.recurlyLoadError = !recurlyIsSetup
 
     $scope.switchToDefaultView = () => {
       $scope.showCancellation = false
@@ -150,6 +193,7 @@ define(['base'], function(App) {
     RecurlyPricing,
     $http
   ) {
+    if (!ensureRecurlyIsSetup()) return
     const subscription = window.subscription
     const sevenDaysTime = new Date()
     sevenDaysTime.setDate(sevenDaysTime.getDate() + 7)
@@ -197,7 +241,7 @@ define(['base'], function(App) {
       $scope.inflight = true
       return $http
         .post('/user/subscription/cancel', body)
-        .then(() => location.reload())
+        .then(() => (location.href = '/user/subscription/canceled'))
         .catch(() => console.log('something went wrong changing plan'))
     }
 

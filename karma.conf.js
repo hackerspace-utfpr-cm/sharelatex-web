@@ -1,6 +1,6 @@
 const path = require('path')
 
-module.exports = function (config) {
+module.exports = function(config) {
   config.set({
     customLaunchers: {
       ChromeCustom: {
@@ -13,7 +13,6 @@ module.exports = function (config) {
     },
     browsers: ['ChromeCustom'],
     files: [
-      'test/unit_frontend/js/bootstrap.js',
       'test/unit_frontend/es/es-bootstrap.js',
       // Angular must be loaded before requirejs to set up angular global
       'public/js/libs/angular-1.6.4.min.js',
@@ -43,11 +42,32 @@ module.exports = function (config) {
     frameworks: ['requirejs', 'mocha', 'chai-sinon'],
     // Configure webpack in the tests
     webpack: {
+      module: {
+        rules: [
+          {
+            // Pass application JS files through babel-loader, compiling to ES5
+            test: /\.js$/,
+            // Only compile application files (dependencies are in ES5 already)
+            exclude: /node_modules/,
+            use: [
+              {
+                loader: 'babel-loader',
+                options: {
+                  // Configure babel-loader to cache compiled output so that
+                  // subsequent compile runs are much faster
+                  cacheDirectory: true
+                }
+              }
+            ]
+          }
+        ]
+      },
       resolve: {
+        // Alias common directories in import pathnames to cut down on the
+        // amount of ../../ etc
         alias: {
-          // Alias Src in import pathnames to public/es
-          // Cuts down on the amount of ../../ etc
-          Src: path.join(__dirname, 'public/es/')
+          Src: path.join(__dirname, 'public/es/'),
+          Modules: path.join(__dirname, 'modules')
         }
       }
     },
@@ -66,14 +86,14 @@ module.exports = function (config) {
       { 'middleware:fake-img': ['factory', fakeImgMiddlewareFactory] }
     ],
     reporters: ['mocha']
-  });
+  })
 }
 
 /**
  * Handle fake images
  */
-function fakeImgMiddlewareFactory () {
-  return function (req, res, next) {
+function fakeImgMiddlewareFactory() {
+  return function(req, res, next) {
     if (req.originalUrl.startsWith('/fake/')) {
       return res.end('fake img response')
     }

@@ -13,6 +13,19 @@
 	padding-left: (@line-height-computed / 2);
 }
 
+.history-compare-mode-toolbar {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: center;
+	line-height: 1;
+	font-size: @font-size-small;
+	background-color: @history-toolbar-bg-color;
+	height: @editor-toolbar-height;
+	color: @history-toolbar-color;
+	padding: 0 10px;
+}
+
 .history-toolbar when (@is-overleaf = false) or (@is-overleaf-light) {
 	border-bottom: @toolbar-border-bottom;
 }
@@ -44,7 +57,6 @@
 		}
 		.history-toolbar-btn-danger {
 			.btn-danger;
-			opacity: 0.65;
 		}
 	.history-toolbar-entries-list {
 		flex: 0 0 @changesListWidth;
@@ -57,6 +69,10 @@
 	color: @history-base-color;
 	height: 100%;
 	background-color: @history-base-bg;
+	position: relative;
+	&.history-entries-dragging {
+		cursor: row-resize;
+	}
 }
 
 .history-entry-day {
@@ -65,20 +81,87 @@
 	color: #FFF;
 	padding: 5px 10px;
 	line-height: 1;
+	position: sticky;
+	top: 0;
+	z-index: 3;
+}
+
+.history-entry-toV-handle,
+.history-entry-fromV-handle {
+	position: absolute;
+	background-color: @history-entry-handle-bg;
+	height: @history-entry-handle-height;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 2;
+	cursor: row-resize;
+
+	&.ui-draggable-dragging {
+		opacity: 0;
+	}
+
+	&::after {
+		content: '\00b7\00b7\00b7\00b7';
+		position: absolute;
+		text-align: center;
+		-webkit-font-smoothing: antialiased;
+		width: 100%;
+		font-size: 20px;
+		color: #FFF;
+		height: @history-entry-handle-height;
+		line-height: @history-entry-handle-height / 2;
+	}
+}
+
+.history-entry-fromV-handle {
+	top: auto;
+	bottom: 0;
 }
 
 .history-entry-details {
+	position: relative;
 	background-color: #FFF;
-	margin-bottom: 2px;
+	border-bottom: solid 2px @history-base-bg;
 	padding: 5px 10px;
 	cursor: pointer;
+}
 
-	.history-entry-selected &,
-	.history-entry-label-selected & {
+.history-version-with-label {
+	.history-entry-details;
+	padding: 7px 10px;
+}
+
+	.history-entry-selected .history-entry-details,
+	.history-version-with-label-selected & {
 		background-color: @history-entry-selected-bg;
 		color: #FFF;
 	}
-}
+
+	.history-entry-hover-selected .history-entry-details,
+	.history-entry-hover-selected.history-entry-selected .history-entry-details, 
+	.history-version-with-label-hover-selected &,
+	.history-version-with-label-hover-selected.history-entry-selected &, {
+		background-color: tint(@history-entry-selected-bg, 20%);
+		color: #FFF;
+	}
+
+	.history-entry-selected-to .history-entry-details,
+	.history-entry-hover-selected-to .history-entry-details,
+	.history-version-with-label-selected-to &,
+	.history-version-with-label-hover-selected-to & {
+		padding-top: @history-entry-handle-height + 5px;
+	}
+
+	.history-entry-selected-from .history-entry-details,
+	.history-entry-hover-selected-from .history-entry-details,
+	.history-version-with-label-selected-from &,
+	.history-version-with-label-hover-selected-from &  {
+		padding-bottom: @history-entry-handle-height + 5px;
+	}
+
+
+
 	.history-label {
 		display: inline-block;
 		color: @history-entry-label-color;
@@ -87,8 +170,18 @@
 		margin-right: 10px;
 		white-space: nowrap;
 		.history-entry-selected &,
-		.history-entry-label-selected & {
+		.history-entry-hover-selected &,
+		.history-version-with-label-selected &,
+		.history-version-with-label-hover-selected & {
 			color: @history-entry-selected-label-color;
+		}
+		&.history-label-pseudo-current-state {
+			.history-entry-selected &,
+			.history-entry-hover-selected &,
+			.history-version-with-label-selected &,
+			.history-version-with-label-hover-selected & {
+				color: @history-entry-selected-pseudo-label-color;
+			}
 		}
 	}
 		.history-label-comment,
@@ -96,8 +189,14 @@
 			padding: 0 @padding-xs-horizontal 1px @padding-xs-horizontal;
 			border: 0;
 			background-color: @history-entry-label-bg-color;
+			.history-label-pseudo-current-state & {
+				background-color: @history-entry-pseudo-label-bg-color;
+
+			}
 			.history-entry-selected &,
-			.history-entry-label-selected & {
+			.history-entry-hover-selected &,
+			.history-version-with-label-selected &,
+			.history-version-with-label-hover-selected & {
 				background-color: @history-entry-selected-label-bg-color;
 			}
 		}
@@ -120,7 +219,9 @@
 			&:hover {
 				background-color: darken(@history-entry-label-bg-color, 8%);
 				.history-entry-selected &,
-				.history-entry-label-selected & {
+				.history-entry-hover-selected &,
+				.history-version-with-label-selected &,
+				.history-version-with-label-hover-selected & {
 					background-color: darken(@history-entry-selected-label-bg-color, 8%);
 				}
 			}
@@ -148,7 +249,7 @@
 		margin-bottom: 3px;
 	}
 		.history-entry-change {
-
+			word-break: break-all;
 		}
 			.history-entry-change-action {
 				margin-right: 0.5em;
@@ -157,9 +258,10 @@
 			.history-entry-change-doc {
 				color: @history-highlight-color;
 				font-weight: bold;
-				word-break: break-all;
+
 				.history-entry-selected &,
-				.history-entry-label-selected & {
+				.history-entry-hover-selected &,
+				.history-version-with-label-selected & {
 					color: #FFF;
 				}
 			}
@@ -188,20 +290,19 @@
 	background-color: #FFF;
 	margin-bottom: 2px;
 	padding: 5px 10px;
+	.change-list-compare & {
+		font-size: @font-size-small;
+	}
 }
 
-.history-labels-list {
+.history-labels-list,
+.history-labels-list-compare {
 	.history-entries;
 	overflow-y: auto;
 }
-	.history-entry-label {
-		.history-entry-details;
-		padding: 7px 10px;
-		&.history-entry-label-selected {
-			background-color: @history-entry-selected-bg;
-			color: #FFF;
-		}
-	}
+.history-labels-list-compare {
+	background-color: transparent;
+}
 
 .history-file-tree-inner {
 	.full-size;
@@ -213,6 +314,14 @@
 		font-size: @history-base-font-size;
 		text-align: center;
 		font-family: @font-family-serif;
+	}
+}
+
+.tooltip-history-file-tree {
+	font-size: 12px;
+	.tooltip-inner {
+		max-width: 400px;
+		text-align: left;
 	}
 }
 
@@ -235,7 +344,7 @@
 				text-decoration: none;
 			}
 			&:focus {
-				color: @file-tree-item-color;
+				color: @file-tree-item-focus-color;
 				outline: none;
 				text-decoration: none;
 			}
@@ -246,28 +355,62 @@
 		.history-file-entity-link-selected {
 			background-color: @file-tree-item-selected-bg;
 			font-weight: bold;
-			padding-right: 32px;
 			color: #FFF;
 			.fake-full-width-bg(@file-tree-item-selected-bg);
 			&:hover {
 				background-color: @file-tree-item-hover-bg;
 			}
+			&:focus {
+				color: @file-tree-item-focus-selected-color;
+			}
 		}
-			.history-file-entity-icon {
-				color: @file-tree-item-icon-color;
-				font-size: 14px;
-				margin-right: .5em;
-				.history-file-entity-link-selected & {
-					color: #FFF;
+			.history-file-entity-name-container {
+				display: flex;
+				align-items: center;
+			}
+				.history-file-entity-name {
+					flex: 0 1 auto;				
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
 				}
-			}
-			.history-file-entity-name {
-				display: block;
-				max-width: 100%;
-				white-space: nowrap;
-				overflow: hidden;
-				text-overflow: ellipsis;
-			}
+				.history-file-entity-operation-badge {
+					flex: 0 0 auto;
+					text-transform: lowercase;
+					margin-left: .5em;
+					font-size: .7em;
+					background: @history-file-badge-bg;
+					color: @history-file-badge-color;
+					border-radius: 8px;
+					line-height: 1;
+					padding: 2px 4px 3px;
+					margin-top: 2px;
+				}
+
+				.history-file-entity-icon,
+				.history-file-operation-icon {
+					flex: 0 0 auto;
+					color: @file-tree-item-icon-color;
+					font-size: 14px;
+					margin-right: .5em;
+					.history-file-entity-link-selected & {
+						color: #FFF;
+					}
+				}
+
+				.history-file-operation-icon {
+					margin-left: .5em;
+					margin-right: 0;
+				}
+					.history-file-entity-name-edited,
+					.history-file-entity-name-added,
+					.history-file-entity-name-removed,
+					.history-file-entity-name-renamed {
+					}
+					.history-file-entity-name-removed {
+						text-decoration: line-through;
+					}
+
 
 		.history-file-entity-link-selected when (@is-overleaf = false) {
 			color: @brand-primary;

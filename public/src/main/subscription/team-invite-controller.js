@@ -14,8 +14,8 @@ define(['base'], App =>
   App.controller('TeamInviteController', function($scope, $http) {
     $scope.inflight = false
 
-    if (hasPersonalSubscription) {
-      $scope.view = 'personalSubscription'
+    if (hasIndividualRecurlySubscription) {
+      $scope.view = 'hasIndividualRecurlySubscription'
     } else {
       $scope.view = 'teamInvite'
     }
@@ -31,7 +31,11 @@ define(['base'], App =>
         $scope.inflight = false
         return ($scope.view = 'teamInvite')
       })
-      return request.catch(() => console.log('the request failed'))
+      return request.catch(() => {
+        $scope.inflight = false
+        $scope.cancel_error = true
+        console.log('the request failed')
+      })
     }
 
     return ($scope.joinTeam = function() {

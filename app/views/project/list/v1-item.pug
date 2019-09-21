@@ -1,25 +1,19 @@
-.col-xs-6.col-sm-4.col-md-6
-	.select-item
-		span.v1-badge(
-			aria-label=translate("v1_badge")
-			tooltip-template="'v1ProjectTooltipTemplate'"
-			tooltip-append-to-body="true"
-		)
-	span
-		if settings.overleaf && settings.overleaf.host
-			button.btn.btn-link.projectName(
-				ng-click="openV1ImportModal(project)"
-				stop-propagation="click"
-				ng-show="project.accessLevel == 'owner'"
-			) {{project.name}}
-			a.projectName(
-				href='/sign_in_to_v1?return_to=/{{project.id}}'
-				target="_blank"
-				ng-hide="project.accessLevel == 'owner'"
-			) {{project.name}}
+td.project-list-table-name-cell(ng-if-start="project.isV1Project")
+	.project-list-table-name-container
+		span.project-list-table-v1-badge-container
+			span.v1-badge(
+				aria-label=translate("v1_badge")
+				tooltip-template="'v1ProjectTooltipTemplate'"
+				tooltip-append-to-body="true"
+			)
+		span.project-list-table-name
+			a.projectName(href='/{{project.id}}') {{project.name}}
 
-.col-xs-2
-	span.owner {{ownerName()}}
+td.project-list-table-owner-cell
+	span.owner {{ownerName(project)}}
 
-.col-xs-4.col-sm-3.col-md-2
+td.project-list-table-lastupdated-cell(
+	ng-if-end
+	colspan="2"
+)
 	span.last-modified(tooltip="{{project.lastUpdated | formatDate}}") {{project.lastUpdated | fromNowDate}}

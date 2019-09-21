@@ -15,33 +15,32 @@ mixin linkAdvisors(linkText, linkClass, track)
 		event-tracking-mb=mb
 		event-segmentation=mbSegmentation
 	)
-		| #{linkText ? linkText : 'advisor programme'}
+		span(ng-non-bindable) #{linkText ? linkText : 'advisor programme'}
 
 mixin linkBenefits(linkText, linkClass)
-	a(href="/for/authors" class=linkClass ? linkClass : '')
+	a(href=(settings.siteUrl ? settings.siteUrl : '') + "/for/authors" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'benefits'}
 		
 mixin linkBlog(linkText, linkClass, slug)
 	if slug
-		a(href="/blog/#{slug}" class=linkClass ? linkClass : '')
+		a(href=(settings.siteUrl ? settings.siteUrl : '') + "/blog/" + slug class=linkClass ? linkClass : '', ng-non-bindable)
 			| #{linkText ? linkText : 'blog'}
 
 mixin linkContact(linkText, linkClass)
-	a(href="/contact" class=linkClass ? linkClass : '')
+	a(href=(settings.siteUrl ? settings.siteUrl : '') + "/contact" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'contact'}
 
 mixin linkDash(linkText, linkClass)
-	a(href="/project" class=linkClass ? linkClass : '')
+	a(href="/project" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'project dashboard'}
 
 mixin linkEducation(linkText, linkClass)
-	a(href="/for/edu" class=linkClass ? linkClass : '')
+	a(href=(settings.siteUrl ? settings.siteUrl : '') + "/for/edu" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'teaching toolkit'}
 
 mixin linkEmail(linkText, linkClass, email)
-	//- To Do: env var?
-	- var emailDomain = 'overleaf.com'
-	a(href="mailto:#{email ? email : 'contact'}@#{emailDomain}" class=linkClass ? linkClass : '')
+	- var emailAddress = email ? email : 'contact'
+	a(href="mailto:" + emailAddress + "@overleaf.com" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'email'}
 
 mixin linkInvite(linkText, linkClass, track)
@@ -61,10 +60,10 @@ mixin linkInvite(linkText, linkClass, track)
 		event-tracking-mb=mb
 		event-segmentation=mbSegmentation
 	)
-		| #{linkText ? linkText : 'invite your friends'}
+		span(ng-non-bindable) #{linkText ? linkText : 'invite your friends'}
 
 mixin linkPlansAndPricing(linkText, linkClass)
-	a(href="/user/subscription/plans" class=linkClass ? linkClass : '')
+	a(href="/user/subscription/plans" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'plans and pricing'}
 
 mixin linkPrintNewTab(linkText, linkClass, icon, track)
@@ -83,19 +82,20 @@ mixin linkPrintNewTab(linkText, linkClass, icon, track)
 		event-tracking-trigger=trigger
 		event-tracking-mb=mb
 		event-segmentation=mbSegmentation
-		target="_BLANK"
+		target="_BLANK",
+		rel="noopener noreferrer"
 	)
 		if icon
 			i(class="fa fa-print")
 			| &nbsp;
-		| #{linkText ? linkText : 'print'}
+		span(ng-non-bindable) #{linkText ? linkText : 'print'}
 
-mixin linkSignIn(linkText, linkClass)
-	a(href="/login" class=linkClass ? linkClass : '')
+mixin linkSignIn(linkText, linkClass, redirect)
+	a(href=`/login${redirect ? '?redir=' + redirect : ''}` class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'sign in'}
 
-mixin linkSignUp(linkText, linkClass)
-	a(href="/register" class=linkClass ? linkClass : '')
+mixin linkSignUp(linkText, linkClass, redirect)
+	a(href=`/register${redirect ? '?redir=' + redirect : ''}` class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'sign up'}
 
 mixin linkTweet(linkText, linkClass, tweetText, track)
@@ -114,9 +114,10 @@ mixin linkTweet(linkText, linkClass, tweetText, track)
 		event-tracking-mb=mb
 		event-segmentation=mbSegmentation
 		href="https://twitter.com/intent/tweet?text=" + tweetText
-		target="_BLANK"
+		target="_BLANK",
+		rel="noopener noreferrer"
 	) #{linkText ? linkText : 'tweet'}
 
 mixin linkUniversities(linkText, linkClass)
-	a(href="/for/universities" class=linkClass ? linkClass : '')
+	a(href=(settings.siteUrl ? settings.siteUrl : '') + "/for/universities" class=linkClass ? linkClass : '', ng-non-bindable)
 		| #{linkText ? linkText : 'universities'}

@@ -83,9 +83,6 @@ define([
       }
 
       showRichText() {
-        if (!window.richTextEnabled) {
-          return false
-        }
         return (
           this.localStorage(`editor.mode.${this.$scope.project_id}`) ===
           'rich-text'
@@ -237,6 +234,12 @@ define([
 
         return sharejs_doc.on('externalUpdate', update => {
           if (this._ignoreExternalUpdates) {
+            return
+          }
+          if (
+            _.property(['meta', 'type'])(update) === 'external' &&
+            _.property(['meta', 'source'])(update) === 'git-bridge'
+          ) {
             return
           }
           return this.ide.showGenericMessageModal(

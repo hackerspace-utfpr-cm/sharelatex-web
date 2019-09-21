@@ -522,8 +522,12 @@ define([
     $scope.$on('editor:track-changes:changed', function() {
       const doc_id = $scope.editor.open_doc_id
       updateEntries(doc_id)
-      $scope.$broadcast('review-panel:recalculate-screen-positions')
-      return $scope.$broadcast('review-panel:layout')
+
+      // For now, not worrying about entry panels for rich text
+      if (!$scope.editor.showRichText) {
+        $scope.$broadcast('review-panel:recalculate-screen-positions')
+        return $scope.$broadcast('review-panel:layout')
+      }
     })
 
     $scope.$on('editor:track-changes:visibility_changed', () =>
@@ -902,8 +906,17 @@ define([
         return ($scope.reviewPanel.fullTCStateCollapsed = !$scope.reviewPanel
           .fullTCStateCollapsed)
       } else {
+        _sendAnalytics()
         return $scope.openTrackChangesUpgradeModal()
       }
+    }
+
+    const _sendAnalytics = () => {
+      event_tracking.send(
+        'subscription-funnel',
+        'editor-click-feature',
+        'real-time-track-changes'
+      )
     }
 
     const _setUserTCState = function(userId, newValue, isLocal) {

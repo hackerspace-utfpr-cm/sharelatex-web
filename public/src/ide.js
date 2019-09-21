@@ -55,6 +55,7 @@ define([
   'directives/videoPlayState',
   'services/queued-http',
   'services/validateCaptcha',
+  'services/validateCaptchaV3',
   'services/wait-for',
   'filters/formatDate',
   'main/event',
@@ -80,7 +81,6 @@ define([
     $timeout,
     ide,
     localStorage,
-    sixpack,
     event_tracking,
     metadata,
     $q,
@@ -125,6 +125,7 @@ define([
     $scope.settings = window.userSettings
     $scope.anonymous = window.anonymous
     $scope.isTokenMember = window.isTokenMember
+    $scope.isRestrictedTokenMember = window.isRestrictedTokenMember
 
     $scope.cobranding = {
       isProjectCobranded: CobrandingDataService.isProjectCobranded(),
@@ -157,8 +158,10 @@ define([
       return ($scope.ui.pdfWidth = layoutState.east.size)
     })
 
-    // Tracking code.
     $scope.$watch('ui.view', function(newView, oldView) {
+      if (newView !== oldView) {
+        $scope.$broadcast('layout:flat-screen:toggle')
+      }
       if (newView != null && newView !== 'editor' && newView !== 'pdf') {
         return event_tracking.sendMBOnce(`ide-open-view-${newView}-once`)
       }
@@ -184,6 +187,13 @@ define([
 
     ide.validFileRegex = '^[^*/]*$' // Don't allow * and /
 
+    let useFallbackWebsocket =
+      window.location &&
+      window.location.search &&
+      window.location.search.match(/ws=fallback/)
+    // if we previously failed to load the websocket fall back to null (the siteUrl)
+    ide.wsUrl = useFallbackWebsocket ? null : window.sharelatex.wsUrl || null // websocket url (if defined)
+
     ide.project_id = $scope.project_id = window.project_id
     ide.$scope = $scope
 
@@ -193,7 +203,7 @@ define([
     ide.editorManager = new EditorManager(ide, $scope, localStorage)
     ide.onlineUsersManager = new OnlineUsersManager(ide, $scope)
     if (window.data.useV2History) {
-      ide.historyManager = new HistoryV2Manager(ide, $scope)
+      ide.historyManager = new HistoryV2Manager(ide, $scope, localStorage)
     } else {
       ide.historyManager = new HistoryManager(ide, $scope)
     }

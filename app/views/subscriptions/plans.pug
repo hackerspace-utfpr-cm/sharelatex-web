@@ -10,7 +10,7 @@ block scripts
 	script(type='text/javascript').
 		window.recomendedCurrency = '#{recomendedCurrency}';
 		window.abCurrencyFlag = '#{abCurrencyFlag}';
-		window.groupPlans = !{JSON.stringify(groupPlans)};
+		window.groupPlans = !{StringHelper.stringifyJsonForScript(groupPlans)};
 
 block content
 	.content.content-alt.content-page
@@ -19,7 +19,7 @@ block content
 				.row
 					.col-md-12
 						.page-header.centered.plans-header.text-centered
-							h1.text-capitalize #{translate('get_instant_access_to')} #{settings.appName}
+							h1.text-capitalize(ng-non-bindable) #{translate('get_instant_access_to')} #{settings.appName}
 				.row
 					.col-md-8.col-md-offset-2
 						p.text-centered #{translate("sl_benefits_plans")}
@@ -89,6 +89,8 @@ block content
 						i.fa.fa-cc-paypal.fa-2x(aria-hidden="true") &nbsp;
 						span.sr-only Paypal accepted
 						div.text-centered #{translate('change_plans_any_time')}<br/> #{translate('billed_after_x_days', {len:'{{trial_len}}'})}
+						br
+						div.text-centered #{translate('subject_to_additional_vat')}<br/> #{translate('select_country_vat')}
 
 				.row.row-spaced-large
 					.col-md-8.col-md-offset-2

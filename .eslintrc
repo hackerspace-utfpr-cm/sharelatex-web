@@ -1,6 +1,7 @@
 {
   "extends": [
     "standard",
+    "standard-jsx",
     "standard-react",
     "prettier",
     "prettier/react",
@@ -8,13 +9,14 @@
     "plugin:jsx-a11y/recommended"
   ],
   "plugins": [
-    "prettier",
     "jsx-a11y",
     "mocha",
     "chai-expect",
     "chai-friendly"
   ],
+  "parser": "babel-eslint",
   "env": {
+    "browser": true,
     "mocha": true
   },
   "globals": {
@@ -23,21 +25,16 @@
     "$": true,
     "angular": true,
     // Injected in layout.pug
-    "user_id": true
+    "user_id": true,
+    "ace": true
   },
   "settings": {
-    // Tell eslint-plugin-react which version of React we are using
+    // Tell eslint-plugin-react to detect which version of React we are using
     "react": {
-      "version": "15"
+      "version": "detect"
     }
   },
   "rules": {
-    "max-len": ["error", {
-      "ignoreUrls": true,
-      // Ignore long describe/it test blocks, long import/require statements
-      "ignorePattern": "(^\\s*(it|describe)\\s*\\(['\"]|^import\\s*.*\\s*from\\s*['\"]|^.*\\s*=\\s*require\\(['\"])"
-    }],
-
     // Fix conflict between prettier & standard by overriding to prefer
     // double quotes
     "jsx-quotes": ["error", "prefer-double"],
@@ -56,20 +53,40 @@
       }
     ],
 
-    // Add some mocha specific rules
-    "mocha/handle-done-callback": "error",
-    "mocha/no-exclusive-tests": "error",
-    "mocha/no-global-tests": "error",
-    "mocha/no-identical-title": "error",
-    "mocha/no-nested-tests": "error",
-    "mocha/no-pending-tests": "error",
-    "mocha/no-skipped-tests": "error",
-
-    // Add some chai specific rules
-    "chai-expect/missing-assertion": "error",
-    "chai-expect/terminating-properties": "error",
     // Swap the no-unused-expressions rule with a more chai-friendly one
     "no-unused-expressions": 0,
     "chai-friendly/no-unused-expressions": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/test/*/src/**/*.js"],
+      "rules": {
+        // mocha-specific rules
+        "mocha/handle-done-callback": "error",
+        "mocha/no-exclusive-tests": "error",
+        "mocha/no-global-tests": "error",
+        "mocha/no-identical-title": "error",
+        "mocha/no-nested-tests": "error",
+        "mocha/no-pending-tests": "error",
+        "mocha/no-skipped-tests": "error",
+        "mocha/no-mocha-arrows": "error",
+
+        // chai-specific rules
+        "chai-expect/missing-assertion": "error",
+        "chai-expect/terminating-properties": "error",
+
+        // prefer-arrow-callback applies to all callbacks, not just ones in mocha tests.
+        // we don't enforce this at the top-level - just in tests to manage `this` scope
+        // based on mocha's context mechanism
+        "mocha/prefer-arrow-callback": "error"
+      }
+    },
+    {
+      // don't allow console.log in backend code
+      "files": ["**/app/*/src/**/*.js"],
+      "rules": {
+        "no-console": "error"
+      }
+    }
+  ]
 }

@@ -26,6 +26,7 @@ define(['base', 'directives/mathjax', 'services/algolia-search'], function(
     $scope.hits = []
     $scope.hits_total = 0
     $scope.config_hits_per_page = 20
+    $scope.processingSearch = false
 
     $scope.clearSearchText = function() {
       $scope.searchQueryText = ''
@@ -42,8 +43,18 @@ define(['base', 'directives/mathjax', 'services/algolia-search'], function(
     }
 
     const buildHitViewModel = function(hit) {
-      const page_underscored = hit.pageName.replace(/\s/g, '_')
-      const section_underscored = hit.sectionName.replace(/\s/g, '_')
+      const pagePath = hit.kb ? 'how-to/' : 'latex/'
+      const pageSlug = encodeURIComponent(hit.pageName.replace(/\s/g, '_'))
+      let section_underscored = ''
+      if (hit.sectionName && hit.sectionName !== '') {
+        section_underscored = '#' + hit.sectionName.replace(/\s/g, '_')
+      }
+      const section = hit._highlightResult.sectionName
+      let pageName = hit._highlightResult.pageName.value
+      if (section && section.value && section !== '') {
+        pageName += ' - ' + section.value
+      }
+
       let content = hit._highlightResult.content.value
       // Replace many new lines
       content = content.replace(/\n\n+/g, '\n\n')
@@ -60,11 +71,8 @@ define(['base', 'directives/mathjax', 'services/algolia-search'], function(
       }
       content = matching_lines.join('\n...\n')
       const result = {
-        name:
-          hit._highlightResult.pageName.value +
-          ' - ' +
-          hit._highlightResult.sectionName.value,
-        url: `/learn/${page_underscored}#${section_underscored}`,
+        name: pageName,
+        url: `/learn/${pagePath}${pageSlug}${section_underscored}`,
         content
       }
       return result
@@ -78,6 +86,7 @@ define(['base', 'directives/mathjax', 'services/algolia-search'], function(
     }
 
     $scope.search = function() {
+      $scope.processingSearch = true
       const query = $scope.searchQueryText
       if (query == null || query.length === 0) {
         updateHits([])
@@ -87,6 +96,7 @@ define(['base', 'directives/mathjax', 'services/algolia-search'], function(
       return algoliaSearch.searchWiki(
         query,
         function(err, response) {
+          $scope.processingSearch = false
           if (response.hits.length === 0) {
             return updateHits([])
           } else {

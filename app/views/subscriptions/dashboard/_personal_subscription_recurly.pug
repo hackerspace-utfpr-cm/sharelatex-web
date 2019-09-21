@@ -1,34 +1,44 @@
-script(src="https://js.recurly.com/v3/recurly.js")
 script(type='text/javascript').
 	window.recurlyApiKey = "!{settings.apis.recurly.publicKey}"
-	window.subscription = !{JSON.stringify(personalSubscription)}
+	window.subscription = !{StringHelper.stringifyJsonForScript(personalSubscription)}
 	window.recomendedCurrency = "#{personalSubscription.recurly.currency}"
 
 div(ng-controller="RecurlySubscriptionController")
 	div(ng-show="!showCancellation")
 		case personalSubscription.recurly.state
 			when "active"
-				p !{translate("currently_subscribed_to_plan", {planName:"<strong>" + personalSubscription.plan.name + "</strong>"})} 
+				p !{translate("currently_subscribed_to_plan", {planName:"<strong>" + personalSubscription.plan.name + "</strong>"})}
 					a(href, ng-click="switchToChangePlanView()", ng-if="showChangePlanButton") !{translate("change_plan")}.
-				-if (personalSubscription.recurly.trialEndsAtFormatted)
-					p You're on a free trial which ends on <strong>#{personalSubscription.recurly.trialEndsAtFormatted}</strong>
+				-if (personalSubscription.recurly.trialEndsAtFormatted && personalSubscription.recurly.trial_ends_at > Date.now())
+					p You're on a free trial which ends on <strong ng-non-bindable>#{personalSubscription.recurly.trialEndsAtFormatted}</strong>
 				p !{translate("next_payment_of_x_collectected_on_y", {paymentAmmount:"<strong>" + personalSubscription.recurly.price + "</strong>", collectionDate:"<strong>" + personalSubscription.recurly.nextPaymentDueAt + "</strong>"})}
+				include ./../_price_exceptions
 				p.pull-right
 				p
 					a(href=personalSubscription.recurly.billingDetailsLink, target="_blank").btn.btn-info #{translate("update_your_billing_details")}
 					| &nbsp;
-					a(href, ng-click="switchToCancellationView()").btn.btn-primary !{translate("cancel_your_subscription")}
+					a(href=personalSubscription.recurly.accountManagementLink, target="_blank").btn.btn-info #{translate("view_your_invoices")}
+					| &nbsp;
+					a(href, ng-click="switchToCancellationView()", ng-hide="recurlyLoadError").btn.btn-danger !{translate("cancel_your_subscription")}
 			when "canceled"
 				p !{translate("currently_subscribed_to_plan", {planName:"<strong>" + personalSubscription.plan.name + "</strong>"})}
 				p !{translate("subscription_canceled_and_terminate_on_x", {terminateDate:"<strong>" + personalSubscription.recurly.nextPaymentDueAt + "</strong>"})}
-				p: form(action="/user/subscription/reactivate",method="post")
-					input(type="hidden", name="_csrf", value=csrfToken)
-					input(type="submit",value="Reactivate your subscription").btn.btn-success
+				p
+					a(href=personalSubscription.recurly.accountManagementLink, target="_blank").btn.btn-info #{translate("view_your_invoices")}
+					p: form(action="/user/subscription/reactivate",method="post")
+						input(type="hidden", name="_csrf", value=csrfToken)
+						input(type="submit",value="Reactivate your subscription").btn.btn-success
 			when "expired"
-				p !{translate("your_subscription_has_expired")}	
-					a(href="/user/subscription/plans") !{translate("create_new_subscription")}
+				p !{translate("your_subscription_has_expired")}
+				p
+					a(href=personalSubscription.recurly.accountManagementLink, target="_blank").btn.btn-info #{translate("view_your_invoices")}
+					| &nbsp;
+					a(href="/user/subscription/plans").btn.btn-success !{translate("create_new_subscription")}
 			default
 				p !{translate("problem_with_subscription_contact_us")}
+
+		.alert.alert-warning(ng-show="recurlyLoadError")
+			strong #{translate('payment_provider_unreachable_error')}
 
 	include ./_change_plans_mixins
 	div(ng-show="showChangePlan", ng-cloak)
@@ -45,7 +55,7 @@ div(ng-controller="RecurlySubscriptionController")
 
 	.div(ng-controller="RecurlyCancellationController", ng-show="showCancellation").text-center
 		p
-			strong Are you sure you want to cancel?
+			strong #{translate("sure_you_want_to_cancel")}
 
 		div(ng-show="showExtendFreeTrial")
 			p !{translate("have_more_days_to_try", {days:14})}
@@ -63,7 +73,6 @@ div(ng-controller="RecurlySubscriptionController")
 					a(href, ng-click="cancelSubscription()", ng-disabled='inflight')  #{translate("no_thanks_cancel_now")}
 
 		div(ng-show="showBasicCancel")
-			p #{translate("sure_you_want_to_cancel")}
 			p
 				a(href, ng-click="switchToDefaultView()").btn.btn-info #{translate("i_want_to_stay")}
 			p

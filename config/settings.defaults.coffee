@@ -8,17 +8,17 @@ minutes = 60 * seconds
 
 # These credentials are used for authenticating api requests
 # between services that may need to go over public channels
-httpAuthUser = "sharelatex"
-httpAuthPass = "password"
+httpAuthUser = process.env['WEB_API_USER'] or "sharelatex"
+httpAuthPass = process.env['WEB_API_PASSWORD'] or "password"
 httpAuthUsers = {}
 httpAuthUsers[httpAuthUser] = httpAuthPass
 
-sessionSecret = "secret-please-change"
+sessionSecret = process.env['SESSION_SECRET'] or "secret-please-change"
 
 v1Api =
-	url: "http://#{process.env['V1_HOST'] or 'localhost'}:5000"
-	user: 'overleaf'
-	pass: 'password'
+	url: process.env['V1_API_URL'] or "http://#{process.env['V1_HOST'] or 'localhost'}:5000"
+	user: process.env['V1_API_USER'] or 'overleaf'
+	pass: process.env['V1_API_PASSWORD'] or 'password'
 
 module.exports = settings =
 
@@ -26,27 +26,16 @@ module.exports = settings =
 		process.env['SHARELATEX_ALLOW_ANONYMOUS_READ_AND_WRITE_SHARING'] == 'true'
 
 
-	# File storage
-	# ------------
-	#
-	# ShareLaTeX stores binary files like images in S3.
-	# Fill in your Amazon S3 credential below.
-	s3:
-		key: ""
-		secret: ""
-		bucketName : ""
-
-
 	# Databases
 	# ---------
 	mongo:
-		url : process.env['MONGO_URL'] || "mongodb://#{process.env['MONGO_HOST'] or '127.0.0.1'}/sharelatex"
+		url : process.env['MONGO_CONNECTION_STRING'] || process.env['MONGO_URL'] || "mongodb://#{process.env['MONGO_HOST'] or '127.0.0.1'}/sharelatex"
 
 	redis:
 		web:
 			host: process.env['REDIS_HOST'] || "localhost"
 			port: process.env['REDIS_PORT'] || "6379"
-			password: ""
+			password: process.env["REDIS_PASSWORD"] or ""
 
 		# websessions:
 		# 	cluster: [
@@ -81,7 +70,7 @@ module.exports = settings =
 		api:
 			host: process.env['REDIS_HOST'] || "localhost"
 			port: process.env['REDIS_PORT'] || "6379"
-			password: ""
+			password: process.env["REDIS_PASSWORD"] or ""
 
 	# Service locations
 	# -----------------
@@ -103,18 +92,20 @@ module.exports = settings =
 	# options incase you want to run some services on remote hosts.
 	apis:
 		web:
-			url: "http://#{process.env['WEB_HOST'] or 'localhost'}:#{webPort}"
+			url: "http://#{process.env['WEB_API_HOST'] or process.env['WEB_HOST'] or "localhost"}:#{process.env['WEB_API_PORT'] or process.env['WEB_PORT'] or 3000}"
 			user: httpAuthUser
 			pass: httpAuthPass
 		documentupdater:
-			url : "http://#{process.env['DOCUPDATER_HOST'] or 'localhost'}:#{docUpdaterPort}"
+			url : "http://#{process.env['DOCUPDATER_HOST'] or process.env['DOCUMENT_UPDATER_HOST'] or 'localhost'}:#{docUpdaterPort}"
 		thirdPartyDataStore:
 			url : "http://#{process.env['TPDS_HOST'] or 'localhost'}:3002"
 			emptyProjectFlushDelayMiliseconds: 5 * seconds
+			dropboxApp: process.env['TPDS_DROPBOX_APP']
 		tags:
 			url :"http://#{process.env['TAGS_HOST'] or 'localhost'}:3012"
 		spelling:
 			url : "http://#{process.env['SPELLING_HOST'] or 'localhost'}:3005"
+			host: process.env['SPELLING_HOST']
 		trackchanges:
 			url : "http://#{process.env['TRACK_CHANGES_HOST'] or 'localhost'}:3015"
 		project_history:
@@ -144,11 +135,12 @@ module.exports = settings =
 		githubSync:
 			url: "http://#{process.env['GITHUB_SYNC_HOST'] or 'localhost'}:3022"
 		recurly:
-			privateKey: ""
-			apiKey: ""
-			subdomain: ""
+			apiKey: process.env['RECURLY_API_KEY'] or ''
+			apiVersion: process.env['RECURLY_API_VERSION']
+			subdomain: process.env['RECURLY_SUBDOMAIN'] or ''
+			publicKey: process.env['RECURLY_PUBLIC_KEY'] or ''
 		geoIpLookup:
-			url: "http://#{process.env['GEOIP_HOST'] or 'localhost'}:8080/json/"
+			url: "http://#{process.env['GEOIP_HOST'] or process.env['FREEGEOIP_HOST'] or  'localhost'}:8080/json/"
 		realTime:
 			url: "http://#{process.env['REALTIME_HOST'] or 'localhost'}:3026"
 		contacts:
@@ -156,7 +148,7 @@ module.exports = settings =
 		sixpack:
 			url: ""
 		references:
-			url: "http://#{process.env['REFERENCES_HOST'] or 'localhost'}:3040"
+			url: if process.env['REFERENCES_HOST']? then "http://#{process.env['REFERENCES_HOST']}:3040" else undefined
 		notifications:
 			url: "http://#{process.env['NOTIFICATIONS_HOST'] or 'localhost'}:3042"
 		analytics:
@@ -171,6 +163,8 @@ module.exports = settings =
 			pass: v1Api.pass
 		v1_history:
 			url: "http://#{process.env['V1_HISTORY_HOST'] or "localhost"}:3100/api"
+			user: process.env['V1_HISTORY_USER'] or 'staging'
+			pass: process.env['V1_HISTORY_PASSWORD'] or 'password'
 
 	templates:
 		user_id: process.env.TEMPLATES_USER_ID or "5395eb7aad1f29a88756c7f2"
@@ -186,20 +180,29 @@ module.exports = settings =
 	# that are sent out, generated links, etc.
 	siteUrl : siteUrl = process.env['PUBLIC_URL'] or 'http://localhost:3000'
 
+
+	# Used to close the editor off to users
+	editorIsOpen: process.env['EDITOR_IS_OPEN'] or true
+	
+	# Optional separate location for websocket connections, if unset defaults to siteUrl.
+	wsUrl: process.env['WEBSOCKET_URL']
+
 	# cookie domain
 	# use full domain for cookies to only be accessible from that domain,
 	# replace subdomain with dot to have them accessible on all subdomains
-	# cookieDomain: ".sharelatex.dev"
-	cookieName: "sharelatex.sid"
+	cookieDomain: process.env['COOKIE_DOMAIN']
+	cookieName: process.env['COOKIE_NAME'] or "sharelatex.sid"
 
 	# this is only used if cookies are used for clsi backend
 	#clsiCookieKey: "clsiserver"
 
 	# Same, but with http auth credentials.
-	httpAuthSiteUrl: 'http://#{httpAuthUser}:#{httpAuthPass}@#{siteUrl}'
+	httpAuthSiteUrl: "http://#{httpAuthUser}:#{httpAuthPass}@#{siteUrl}"
 
 
 	maxEntitiesPerProject: 2000
+	
+	maxUploadSize: 50 * 1024 * 1024 # 50 MB
 
 	# Security
 	# --------
@@ -254,10 +257,56 @@ module.exports = settings =
 	# You must have the corresponding aspell package installed to
 	# be able to use a language.
 	languages: [
-		{name: "English", code: "en"},
-		{name: "French", code: "fr"}
+		{code: "en", name: "English"},
+		{code: "en_US", name: "English (American)"},
+		{code: "en_GB", name: "English (British)"},
+		{code: "en_CA", name: "English (Canadian)"},
+		{code: "af", name: "Afrikaans"},
+		{code: "ar", name: "Arabic"},
+		{code: "gl", name: "Galician"},
+		{code: "eu", name: "Basque"},
+		{code: "br", name: "Breton"},
+		{code: "bg", name: "Bulgarian"},
+		{code: "ca", name: "Catalan"},
+		{code: "hr", name: "Croatian"},
+		{code: "cs", name: "Czech"},
+		{code: "da", name: "Danish"},
+		{code: "nl", name: "Dutch"},
+		{code: "eo", name: "Esperanto"},
+		{code: "et", name: "Estonian"},
+		{code: "fo", name: "Faroese"},
+		{code: "fr", name: "French"},
+		{code: "de", name: "German"},
+		{code: "el", name: "Greek"},
+		{code: "id", name: "Indonesian"},
+		{code: "ga", name: "Irish"},
+		{code: "it", name: "Italian"},
+		{code: "kk", name: "Kazakh"},
+		{code: "ku", name: "Kurdish"},
+		{code: "lv", name: "Latvian"},
+		{code: "lt", name: "Lithuanian"},
+		{code: "nr", name: "Ndebele"},
+		{code: "ns", name: "Northern Sotho"},
+		{code: "no", name: "Norwegian"},
+		{code: "fa", name: "Persian"},
+		{code: "pl", name: "Polish"},
+		{code: "pt_BR", name: "Portuguese (Brazilian)"},
+		{code: "pt_PT", name: "Portuguese (European)"},
+		{code: "pa", name: "Punjabi"},
+		{code: "ro", name: "Romanian"},
+		{code: "ru", name: "Russian"},
+		{code: "sk", name: "Slovak"},
+		{code: "sl", name: "Slovenian"},
+		{code: "st", name: "Southern Sotho"},
+		{code: "es", name: "Spanish"},
+		{code: "sv", name: "Swedish"},
+		{code: "tl", name: "Tagalog"},
+		{code: "ts", name: "Tsonga"},
+		{code: "tn", name: "Tswana"},
+		{code: "hsb", name: "Upper Sorbian"},
+		{code: "cy", name: "Welsh"},
+		{code: "xh", name: "Xhosa"}
 	]
-
 
 	# Password Settings
 	# -----------
@@ -345,12 +394,20 @@ module.exports = settings =
 	# public projects, /learn, /templates, about pages, etc.
 	allowPublicAccess: if process.env["SHARELATEX_ALLOW_PUBLIC_ACCESS"] == 'true' then true else false
 
+	enableHomepage: process.env["HOME_PAGE_ENABLED"] == 'true'
+
+	# editor should be open by default
+	editorIsOpen: if process.env["EDITOR_OPEN"] == 'false' then false else true
+
+	# site should be open by default
+	siteIsOpen: if process.env["SITE_OPEN"] == 'false' then false else true
+
 	# Use a single compile directory for all users in a project
 	# (otherwise each user has their own directory)
 	# disablePerUserCompiles: true
 
 	# Domain the client (pdfjs) should download the compiled pdf from
-	# pdfDownloadDomain: "http://clsi-lb:3014"
+	pdfDownloadDomain: process.env["PDF_DOWNLOAD_DOMAIN"]  #"http://clsi-lb:3014"
 
 	# Maximum size of text documents in the real-time editing system.
 	max_doc_length: 2 * 1024 * 1024 # 2mb
@@ -361,8 +418,8 @@ module.exports = settings =
 		# If we ever need to write something to disk (e.g. incoming requests
 		# that need processing but may be too big for memory, then write
 		# them to disk here).
-		dumpFolder: Path.resolve __dirname + "/../data/dumpFolder"
-		uploadFolder: Path.resolve __dirname + "/../data/uploads"
+		dumpFolder: "/data/dumpFolder"
+		uploadFolder: "/data/uploads"
 
 	# Automatic Snapshots
 	# -------------------
@@ -379,15 +436,20 @@ module.exports = settings =
 	# Provide log in credentials and a project to be able to run
 	# some basic smoke tests to check the core functionality.
 	#
-	# smokeTest:
-	# 	user: ""
-	# 	password: ""
-	# 	projectId: ""
+	smokeTest:
+		user: process.env['SMOKE_TEST_USER']
+		userId: process.env['SMOKE_TEST_USER_ID']
+		password: process.env['SMOKE_TEST_PASSWORD']
+		projectId: process.env['SMOKE_TEST_PROJECT_ID']
+		rateLimitSubject: process.env['SMOKE_TEST_RATE_LIMIT_SUBJECT'] or "127.0.0.1"
 
-	appName: "ShareLaTeX (Community Edition)"
-	adminEmail: "placeholder@example.com"
+	appName: process.env['APP_NAME'] or "ShareLaTeX (Community Edition)"
 
-	brandPrefix: "" # Set to 'ol-' for overleaf styles
+	adminEmail: process.env['ADMIN_EMAIL'] or "placeholder@example.com"
+
+	statusPageUrl: process.env['OVERLEAF_STATUS_URL'] or "status.overleaf.com"
+
+	brandPrefix: process.env['BRAND_PREFIX'] or "sl-" # Set to 'ol-' for overleaf styles
 
 	nav:
 		title: "ShareLaTeX Community Edition"
@@ -406,6 +468,11 @@ module.exports = settings =
 		header_extras: []
 		# Example:
 		#   header_extras: [{text: "Some Page", url: "http://example.com/some/page", class: "subdued"}]
+
+	recaptcha:
+		disabled:
+			invite: true
+			register: true
 
 	customisation: {}
 
@@ -479,14 +546,16 @@ module.exports = settings =
 	#	url: "/templates/all"
 	#}]
 
-	rateLimits:
+	rateLimit:
 		autoCompile:
-			everyone: 100
-			standard: 25
+			everyone: process.env['RATE_LIMIT_AUTO_COMPILE_EVERYONE'] or 100
+			standard: process.env['RATE_LIMIT_AUTO_COMPILE_STANDARD'] or 25
 
 	# currentImage: "texlive-full:2017.1"
 	# imageRoot: "<DOCKER REPOSITORY ROOT>" # without any trailing slash
 	
+	compileBodySizeLimitMb: process.env['COMPILE_BODY_SIZE_LIMIT_MB'] or 5
+
 	# allowedImageNames: [
 	# 	{imageName: 'texlive-full:2017.1', imageDesc: 'TeXLive 2017'}
 	# 	{imageName:   'wl_texlive:2018.1', imageDesc: 'Legacy OL TeXLive 2015'}
@@ -499,8 +568,8 @@ module.exports = settings =
 	# ----------
 	modules:
 		sanitize:
-			options: 
-				allowedTags: [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol', 'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'br', 'div', 'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre', 'iframe', 'img', 'figure', 'figcaption', 'span', 'source', 'video' ]
+			options:
+				allowedTags: [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol', 'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'br', 'div', 'table', 'thead', 'col', 'caption', 'tbody', 'tr', 'th', 'td', 'tfoot', 'pre', 'iframe', 'img', 'figure', 'figcaption', 'span', 'source', 'video', 'del' ]
 				allowedAttributes:
 					'a': [ 'href', 'name', 'target', 'class', 'event-tracking', 'event-tracking-ga', 'event-tracking-label', 'event-tracking-trigger' ]
 					'div': [ 'class', 'id', 'style' ]
@@ -510,10 +579,16 @@ module.exports = settings =
 					'h4': [ 'class', 'id' ]
 					'h5': [ 'class', 'id' ]
 					'h6': [ 'class', 'id' ]
+					'col': [ 'width' ]
 					'figure': [ 'class', 'id', 'style']
 					'figcaption': [ 'class', 'id', 'style']
-					'iframe': [ 'allowfullscreen', 'frameborder', 'height', 'src', 'width' ]
+					'i': [ 'aria-hidden', 'aria-label', 'class', 'id' ] 
+					'iframe': [ 'allowfullscreen', 'frameborder', 'height', 'src', 'style', 'width' ]
 					'img': [ 'alt', 'class', 'src', 'style' ]
 					'source': [ 'src', 'type' ]
 					'span': [ 'class', 'id', 'style' ]
+					'table': [ 'border', 'class', 'id', 'style' ]
+					'td': [ 'colspan', 'rowspan', 'headers' ]
+					'th': [ 'abbr', 'headers', 'colspan', 'rowspan', 'scope', 'sorted', 'style' ]
+					'tr': [ 'class' ]
 					'video': [ 'alt', 'class', 'controls', 'height', 'width' ]

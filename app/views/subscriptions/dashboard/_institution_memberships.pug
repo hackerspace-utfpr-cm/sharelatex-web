@@ -1,9 +1,10 @@
 each institution in confirmedMemberInstitutions
 	if (institution.licence != 'free')
+		-hasDisplayedSubscription = true
 		p
 			| You have a
 			|
-			strong Professional
+			strong(ng-non-bindable) Professional
 			|
 			| #{settings.appName} account as a confirmed member of
 			|

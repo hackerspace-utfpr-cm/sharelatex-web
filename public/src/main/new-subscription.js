@@ -4,7 +4,7 @@
     no-return-assign
 */
 /* global recurly,_,define */
-define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
+define(['base', 'directives/creditCards'], App =>
   App.controller('NewSubscriptionController', function(
     $scope,
     MultiCurrencyPricing,
@@ -12,10 +12,12 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
     event_tracking,
     ccUtils
   ) {
-    if (typeof recurly === 'undefined') {
-      throw new Error('Recurly API Library Missing.')
+    if (typeof recurly === 'undefined' || !recurly) {
+      $scope.recurlyLoadError = true
+      return
     }
 
+    $scope.recurlyLoadError = false
     $scope.currencyCode = MultiCurrencyPricing.currencyCode
     $scope.allCurrencies = MultiCurrencyPricing.plans
     $scope.availableCurrencies = {}
@@ -27,12 +29,22 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
       event_tracking.sendMB('subscription-form-switch-to-student', {
         plan: window.plan_code
       })
+      event_tracking.send(
+        'subscription-funnel',
+        'subscription-form-switch-to-student',
+        window.plan_code
+      )
       window.location = `/user/subscription/new?planCode=${planCode}&currency=${
         $scope.currencyCode
       }&cc=${$scope.data.coupon}`
     }
 
     event_tracking.sendMB('subscription-form', { plan: window.plan_code })
+    event_tracking.send(
+      'subscription-funnel',
+      'subscription-form-viewed',
+      window.plan_code
+    )
 
     $scope.paymentMethod = { value: 'credit_card' }
 
@@ -51,6 +63,14 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
     $scope.validation = {}
 
     $scope.processing = false
+
+    $scope.threeDSecureFlow = false
+    $scope.threeDSecureContainer = document.querySelector(
+      '.three-d-secure-container'
+    )
+    $scope.threeDSecureRecurlyContainer = document.querySelector(
+      '.three-d-secure-recurly-container'
+    )
 
     recurly.configure({
       publicKey: window.recurlyApiKey,
@@ -160,10 +180,21 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
       $scope.genericError = ''
     }
 
-    const completeSubscription = function(err, recurly_token_id) {
+    let cachedRecurlyBillingToken
+    const completeSubscription = function(
+      err,
+      recurlyBillingToken,
+      recurly3DSecureResultToken
+    ) {
+      if (recurlyBillingToken) {
+        // temporary store the billing token as it might be needed when
+        // re-sending the request after SCA authentication
+        cachedRecurlyBillingToken = recurlyBillingToken
+      }
       $scope.validation.errorFields = {}
       if (err != null) {
         event_tracking.sendMB('subscription-error', err)
+        event_tracking.send('subscription-funnel', 'subscription-error')
         // We may or may not be in a digest loop here depending on
         // whether recurly could do validation locally, so do it async
         $scope.$evalAsync(function() {
@@ -177,11 +208,15 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
       } else {
         const postData = {
           _csrf: window.csrfToken,
-          recurly_token_id: recurly_token_id.id,
+          recurly_token_id: cachedRecurlyBillingToken.id,
+          recurly_three_d_secure_action_result_token_id:
+            recurly3DSecureResultToken && recurly3DSecureResultToken.id,
           subscriptionDetails: {
             currencyCode: pricing.items.currency,
             plan_code: pricing.items.plan.code,
             coupon_code: pricing.items.coupon ? pricing.items.coupon.code : '',
+            first_name: $scope.data.first_name,
+            last_name: $scope.data.last_name,
 
             isPaypal: $scope.paymentMethod.value === 'paypal',
             address: {
@@ -200,16 +235,33 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
           coupon_code: postData.subscriptionDetails.coupon_code,
           isPaypal: postData.subscriptionDetails.isPaypal
         })
+        event_tracking.send(
+          'subscription-funnel',
+          'subscription-form-submitted',
+          postData.subscriptionDetails.plan_code
+        )
 
         return $http
           .post('/user/subscription/create', postData)
           .then(function() {
             event_tracking.sendMB('subscription-submission-success')
+            event_tracking.send(
+              'subscription-funnel',
+              'subscription-submission-success',
+              postData.subscriptionDetails.plan_code
+            )
             window.location.href = '/user/subscription/thank-you'
           })
-          .catch(function() {
+          .catch(response => {
             $scope.processing = false
-            $scope.genericError = 'Something went wrong processing the request'
+            const { data } = response
+            $scope.genericError =
+              (data && data.message) ||
+              'Something went wrong processing the request'
+
+            if (data.threeDSecureActionTokenId) {
+              initThreeDSecure(data.threeDSecureActionTokenId)
+            }
           })
       }
     }
@@ -222,6 +274,44 @@ define(['base', 'directives/creditCards', 'libs/recurly-4.8.5'], App =>
       } else {
         return recurly.token($scope.data, completeSubscription)
       }
+    }
+
+    const initThreeDSecure = function(threeDSecureActionTokenId) {
+      // instanciate and configure Recurly 3DSecure flow
+      const risk = recurly.Risk()
+      const threeDSecure = risk.ThreeDSecure({
+        actionTokenId: threeDSecureActionTokenId
+      })
+
+      // on SCA verification error: show payment UI with the error message
+      threeDSecure.on('error', error => {
+        $scope.genericError = `Error: ${error.message}`
+        $scope.threeDSecureFlow = false
+        $scope.$apply()
+      })
+
+      // on SCA verification success: show payment UI in processing mode and
+      // resubmit the payment with the new token final success or error will be
+      // handled by `completeSubscription`
+      threeDSecure.on('token', recurly3DSecureResultToken => {
+        completeSubscription(null, null, recurly3DSecureResultToken)
+        $scope.genericError = null
+        $scope.threeDSecureFlow = false
+        $scope.processing = true
+        $scope.$apply()
+      })
+
+      // make sure the threeDSecureRecurlyContainer is empty (in case of
+      // retries) and show 3DSecure UI
+      $scope.threeDSecureRecurlyContainer.innerHTML = ''
+      $scope.threeDSecureFlow = true
+      threeDSecure.attach($scope.threeDSecureRecurlyContainer)
+
+      // scroll the UI into view (timeout needed to make sure the element is
+      // visible)
+      window.setTimeout(() => {
+        $scope.threeDSecureContainer.scrollIntoView()
+      }, 0)
     }
 
     $scope.countries = [

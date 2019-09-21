@@ -27,6 +27,7 @@ define(['base'], App =>
     $http,
     ide,
     validateCaptcha,
+    validateCaptchaV3,
     settings,
     event_tracking
   ) {
@@ -56,6 +57,16 @@ define(['base'], App =>
           allowedNoOfMembers || allowedNoOfMembers === INFINITE_COLLABORATORS)
     }
     $scope.refreshCanAddCollaborators()
+
+    $scope.$watch('canAddCollaborators', function() {
+      if (!$scope.canAddCollaborators) {
+        event_tracking.send(
+          'subscription-funnel',
+          'editor-click-feature',
+          'projectMembers'
+        )
+      }
+    })
 
     $scope.$watch(
       '(project.members.length + project.invites.length)',
@@ -160,6 +171,10 @@ define(['base'], App =>
             // Skip this existing member
             return addNextMember()
           }
+          // do v3 captcha to collect data only
+          validateCaptchaV3('invite')
+          // do v2 captcha
+          const ExposedSettings = window.ExposedSettings
           return validateCaptcha(function(response) {
             let inviteId, request
             $scope.grecaptchaResponse = response
@@ -227,7 +242,7 @@ define(['base'], App =>
                   return ($scope.state.errorReason = null)
                 }
               })
-          })
+          }, ExposedSettings.recaptchaDisabled.invite)
         })()
       }
 

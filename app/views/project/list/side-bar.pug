@@ -26,7 +26,22 @@
 				ng-click="openUploadProjectModal()"
 			) #{translate("upload_project")}
 		!= moduleIncludes("newProjectMenu", locals)
+
+		if portalTemplates.length > 0
+			//- portalTemplates is set in ProjectController
+			li.divider
+			li.dropdown-header #{translate("institution")} #{translate("templates")}
+			for portal in portalTemplates
+				li
+					a.menu-indent(
+						href=portal.url + "#templates",
+						ng-non-bindable
+					) #{portal.name}
+
+
+
 		if (templates)
+			//- templates is an express local var, via settings.templateLinks
 			li.divider
 			li.dropdown-header #{translate("templates")}
 			each item in templates
@@ -63,13 +78,14 @@
 			a.tag-name(href)
 				i.icon.fa.fa-fw(
 					ng-class="{\
-						'fa-folder-open-o': tag.selected,\
-						'fa-folder-o': !tag.selected\
+						'fa-folder-open': tag.selected,\
+						'fa-folder': !tag.selected\
 					}"
+					ng-style="{ 'color': 'hsl({{ getHueForTagId(tag._id) }}, 70%, 45%)' }"
 					aria-hidden="true"
 				)
 				span.name {{tag.name}} 
-					span.subdued  ({{tag.project_ids.length}})
+					span.subdued  ({{countProjectsForTag(tag)}})
 					span.v1-badge(
 						ng-if="tag.isV1",
 						ng-cloak,
@@ -125,7 +141,7 @@
 						href="/user/settings"
 					) Add Affiliation
 
-		.row-spaced(ng-if="hasProjects && userHasNoSubscription", ng-cloak).text-centered
+		.row-spaced(ng-if="hasProjects && userHasNoSubscription && !userOnPayingUniversity", ng-cloak).text-centered
 			hr
 			p.small #{translate("on_free_sl")}
 			p
@@ -137,5 +153,3 @@
 			
 script.
 	window.userHasNoSubscription = #{!!(settings.enableSubscriptions && !hasSubscription)}
-
-
